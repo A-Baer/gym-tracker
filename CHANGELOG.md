@@ -17,6 +17,7 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/spec/v2.0.0
 
 ### Sécurité
 - **La demande de réinitialisation du mot de passe répond de la même façon quelle que soit l'adresse** (#1951) : le lien part désormais en file, hors de la requête, et la page de réinitialisation refuse tout lien invalide par le même message, après le même délai. Le courriel part donc de worker, par Horizon, et non plus de app : il suppose la sortie de worker posée en 1.6.1 (#2019). Horizon arrêté, il attend sa reprise ; un envoi qui échoue n'est pas retenté et reste parmi les jobs échoués, alors que la page a déjà annoncé le lien.
+- **Les messages d'erreur SQL ne recopient plus les valeurs de la requête, ni les piles d'exception leurs arguments** (#2032) : la requête citée garde ses `?` (`mask_bindings_in_exception_messages` sur les connexions mysql et mariadb), et le texte du serveur de base remplace par `'?'` la valeur d'une clé en double ou d'une valeur mal typée ; en production, les piles d'exception ne gardent plus les arguments des appels (`zend.exception_ignore_args` dans `docker/php-prod.ini` et `docker/php-cli/zz-cli.ini`). Cela vaut pour les journaux, la table des exceptions du panneau et `failed_jobs`. `LesErreursSqlNeRecopientPasLesValeursTest`, `TexteDuServeurSansValeursTest` et `LesPilesNeGardentPasLeursArgumentsTest` le vérifient.
 
 ## [1.6.1] - 2026-10-08
 

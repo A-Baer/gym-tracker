@@ -1,12 +1,16 @@
 <p align="center">
+  <img src="public/icone.svg" alt="" width="120" height="120" />
+</p>
+
+<h1 align="center">GymTracker</h1>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Laravel-13-FF2D20?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel 13" />
   <img src="https://img.shields.io/badge/Vue.js-3-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" alt="Vue 3" />
   <img src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS 4" />
   <img src="https://img.shields.io/badge/Inertia.js-3-9553E9?style=for-the-badge&logo=inertia&logoColor=white" alt="Inertia.js" />
   <img src="https://img.shields.io/badge/PHPStan-level%20max-blue?style=for-the-badge" alt="PHPStan level max" />
 </p>
-
-<h1 align="center">💪 GymTracker</h1>
 
 <p align="center">
   <strong>Une application de suivi de musculation moderne, élégante et performante.</strong>
@@ -55,9 +59,9 @@ Chaque seuil ci-dessous est **appliqué par la CI**, pas déclaratif. Ils sont p
 | Contrôle | Seuil | Où |
 | --- | --- | --- |
 | **PHPStan** | `level: max` + strict-rules, deprecation-rules, détecteur de code mort | bloquant par PR |
-| **Tests backend** | 3 472 tests, couverture ≥ **94 %** | bloquant par PR |
-| **Tests frontend** | 2 627 tests, ≥ **95 %** statements / 92 branches / 92 functions / 95 lines | bloquant par PR |
-| **Tests navigateur** | 121 parcours Dusk sous Chrome headless | bloquant par PR |
+| **Tests backend** | 3 479 tests, couverture ≥ **94 %** | bloquant par PR |
+| **Tests frontend** | 2 640 tests, ≥ **95 %** statements / 92 branches / 92 functions / 95 lines | bloquant par PR |
+| **Tests navigateur** | 123 parcours Dusk sous Chrome headless | bloquant par PR |
 | **PHP Insights** | ≥ 90 en qualité, complexité, architecture et style | bloquant par PR |
 | **Rector / Pint** | aucun changement en attente | bloquant par PR |
 | **Mutation testing** | ≥ 82 % `App\Services\PersonalRecordService`, 89 % le reste d'`App\Services`, 95 % `App\Actions`, 99 % `App\Policies` | nocturne, **bloque la release** |

@@ -11,8 +11,10 @@ import { createApp, h } from 'vue'
  * clé de l'onglet (`crypto.subtle`, que le navigateur n'offre qu'en HTTPS et
  * sur la boucle locale). Ce fichier vérifie que le client le fait bien de
  * cette page : l'entrée est un `ArrayBuffer` où l'adresse ne se lit pas, et
- * rien d'autre que le navigateur garde ne la recopie. Reste le DOM de la page
- * ouverte, où elle se lit en clair, en lecture seule.
+ * rien d'autre que le navigateur garde ne la recopie. Reste le champ de la
+ * page ouverte, où elle se lit en clair, en lecture seule ; la page initiale
+ * du document, que l'historique chiffré ne couvre pas, est vidée au montage
+ * (pageInitialeDeLaReinitialisation.test.js).
  *
  * L'entrée se reconnaît comme Inertia la reconnaît avant de la déchiffrer,
  * par `instanceof ArrayBuffer`, jamais par sa marque (`.ai/rules/tests-js.md`).

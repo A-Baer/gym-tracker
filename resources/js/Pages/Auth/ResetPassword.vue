@@ -13,18 +13,23 @@
  * à `false` : le champ reste dans le formulaire, caché (`hidden`), comme le
  * recommandent les gestionnaires. Le serveur ne donne pas l'adresse là où le
  * navigateur ne saurait pas chiffrer l'historique : le champ manque alors.
+ * Une fois montée, la page vide la page initiale du document
+ * (`viderLaPageInitialeDuDocument()`), que le chiffrement de l'historique ne
+ * couvre pas et qu'Inertia garderait, compte, jeton et valeur chiffrée
+ * compris, tant que l'onglet ne recharge pas.
  *
  * Un lien refusé (jeton faux ou périmé, lien d'avant le chiffrement) le dit
  * dès l'ouverture (`lienRefuse`), avec le chemin d'une nouvelle demande, sans
  * formulaire. Un envoi refusé plus tard revient avec l'erreur sous `token`,
  * montrée au même endroit.
  */
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import InputError from '@/Components/Form/InputError.vue'
 import GlassButton from '@/Components/UI/GlassButton.vue'
 import GlassInput from '@/Components/UI/GlassInput.vue'
 import GuestLayout from '@/Layouts/GuestLayout.vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
+import { viderLaPageInitialeDuDocument } from '@/Utils/historiqueDuCompte'
 import { NOUVEAU_MOT_DE_PASSE_NON_CONFIRME, direSansReseau } from '@/Utils/visitesHorsLigne'
 
 /** Le compte du lien se voit ; à `false`, il reste dans le formulaire, caché. */
@@ -45,6 +50,8 @@ const form = useForm({
 })
 
 const refus = computed(() => props.lienRefuse || form.errors.token)
+
+onMounted(() => viderLaPageInitialeDuDocument(document, 'Auth/ResetPassword'))
 
 const submit = () => {
     form.post(route('password.store'), {

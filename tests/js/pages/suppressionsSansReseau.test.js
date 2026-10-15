@@ -24,6 +24,11 @@ import {
  * Les pages qui suppriment (`useConfirmation` puis `router.delete` ou
  * `useForm().delete`) n'ont pas de message à elles : c'est le filet qui parle
  * pour toutes, d'après la méthode de la visite.
+ *
+ * Le message part vers le toast du layout : la fenêtre de confirmation doit
+ * donc se refermer à la fin de la visite, quelle qu'en soit l'issue, puisque
+ * la fenêtre que `showModal()` ouvre passe au-dessus de toute la page. Celle
+ * des objectifs ne se refermait que sur un succès.
  */
 
 /** Le layout réduit à ce que la page y pose, et aux vrais toasts du layout. */
@@ -42,12 +47,41 @@ vi.mock('@/Layouts/AuthenticatedLayout.vue', async () => {
     }
 })
 
+/*
+ * Le graphique des objectifs n'a rien à voir avec la suppression, et il
+ * chargerait Chart.js. `defineAsyncComponent` ne prend `default` que d'un
+ * module qui se dit module (`__esModule`).
+ */
+vi.mock('@/Components/Stats/GoalTypeChart.vue', () => ({
+    __esModule: true,
+    default: { name: 'GoalTypeChart', render: () => null },
+}))
+
+/*
+ * jsdom n'a pas de `<dialog>` modal : ces deux-là jouent ce qui compte ici,
+ * `open` que `showModal()` et `close()` basculent, comme dans
+ * `modalScrollLock.test.js`.
+ */
+const showModalDOrigine = HTMLDialogElement.prototype.showModal
+const closeDOrigine = HTMLDialogElement.prototype.close
+
 let routeur
 let application
 let relais
 let pages
 
 beforeAll(async () => {
+    HTMLDialogElement.prototype.showModal = function showModal() {
+        this.open = true
+    }
+    HTMLDialogElement.prototype.close = function close() {
+        if (!this.open) {
+            return
+        }
+
+        this.open = false
+        this.dispatchEvent(new Event('close'))
+    }
     vi.stubGlobal('XMLHttpRequest', RequeteSimulee)
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
     document.body.innerHTML = '<div id="app"></div>'
@@ -63,6 +97,7 @@ beforeAll(async () => {
     pages = {
         'Workouts/Templates/Index': (await import('@/Pages/Workouts/Templates/Index.vue')).default,
         'Tools/IntervalTimer': (await import('@/Pages/Tools/IntervalTimer.vue')).default,
+        'Goals/Index': (await import('@/Pages/Goals/Index.vue')).default,
         Dashboard: { render: () => h('p', 'Accueil') },
     }
 
@@ -95,6 +130,8 @@ afterAll(() => {
     application.unmount()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+    HTMLDialogElement.prototype.showModal = showModalDOrigine
+    HTMLDialogElement.prototype.close = closeDOrigine
 })
 
 /** Ouvre `composant` comme le serveur l'enverrait, puis coupe le réseau. */
@@ -133,6 +170,9 @@ const ongletNomme = (texte) =>
 const boutonNomme = (nom) =>
     [...document.querySelectorAll('button')].find((bouton) => bouton.getAttribute('aria-label') === nom)
 
+/** Les fenêtres ouvertes par `showModal()`, au-dessus de tout le reste de la page. */
+const fenetresOuvertes = () => [...document.querySelectorAll('dialog')].filter((fenetre) => fenetre.open)
+
 describe('une suppression confirmée sans réseau', () => {
     it.each([
         [
@@ -141,6 +181,7 @@ describe('une suppression confirmée sans réseau', () => {
             { templates: [{ id: 5, name: 'Jambes', workout_template_lines: [] }] },
             null,
             'Supprimer Jambes',
+            '[dusk="confirm-dialog-confirm"]',
             'DELETE /templates.destroy/5',
         ],
         [
@@ -151,26 +192,63 @@ describe('une suppression confirmée sans réseau', () => {
             },
             'Préréglages',
             'Supprimer le minuteur',
+            '[dusk="confirm-dialog-confirm"]',
             'DELETE /tools.interval-timer.destroy/9',
         ],
-    ])('%s dit que la suppression n’est pas confirmée', async (composant, adresse, props, onglet, bouton, requete) => {
-        await ouvrirLaPage(composant, adresse, { errors: {}, ...props })
+        [
+            'Goals/Index',
+            '/goals',
+            {
+                goals: [
+                    {
+                        id: 4,
+                        title: 'Squat 140kg',
+                        type: 'weight',
+                        unit: 'kg',
+                        start_value: 100,
+                        current_value: 120,
+                        target_value: 140,
+                        progress_pct: 50,
+                        deadline: null,
+                        completed_at: null,
+                    },
+                ],
+                exercises: [],
+                measurementTypes: [],
+            },
+            null,
+            "Supprimer l'objectif Squat 140kg",
+            '[dusk="confirm-delete-goal"]',
+            'DELETE /goals.destroy/4',
+        ],
+    ])(
+        '%s dit que la suppression n’est pas confirmée, fenêtre refermée',
+        async (composant, adresse, props, onglet, bouton, confirmation, requete) => {
+            await ouvrirLaPage(composant, adresse, { errors: {}, ...props })
 
-        if (onglet !== null) {
-            ongletNomme(onglet).click()
+            if (onglet !== null) {
+                ongletNomme(onglet).click()
+                await uneTache()
+            }
+
+            boutonNomme(bouton).click()
             await uneTache()
-        }
 
-        boutonNomme(bouton).click()
-        await uneTache()
+            expect(fenetresOuvertes()).toHaveLength(1)
 
-        const fin = attendreLaFinDeLaVisite()
-        document.querySelector('[dusk="confirm-dialog-confirm"]').click()
-        await fin()
+            const fin = attendreLaFinDeLaVisite()
+            document.querySelector(confirmation).click()
+            await fin()
 
-        expect(requetes.map((r) => `${r.methode.toUpperCase()} ${new URL(r.url).pathname}`)).toEqual([requete])
-        expect(toastsAffiches()).toEqual([SUPPRESSION_NON_CONFIRMEE])
-        expect(toastsAffiches()).not.toContain(ECRITURE_NON_CONFIRMEE)
-        expect(relais.rejets).toEqual([])
-    })
+            expect(requetes.map((r) => `${r.methode.toUpperCase()} ${new URL(r.url).pathname}`)).toEqual([requete])
+            expect(toastsAffiches()).toEqual([SUPPRESSION_NON_CONFIRMEE])
+            expect(toastsAffiches()).not.toContain(ECRITURE_NON_CONFIRMEE)
+            expect(relais.rejets).toEqual([])
+
+            // La fenêtre se referme après son fondu de 200 ms ; ouverte, elle couvrirait le toast.
+            await vi.waitUntil(() => fenetresOuvertes().length === 0).catch(() => {})
+            expect(fenetresOuvertes(), 'la fenêtre de confirmation couvre encore le toast').toEqual([])
+            expect(toastsAffiches()).toEqual([SUPPRESSION_NON_CONFIRMEE])
+        },
+    )
 })

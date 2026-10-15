@@ -13,6 +13,7 @@ import GlassButton from '@/Components/UI/GlassButton.vue'
 import GlassInput from '@/Components/UI/GlassInput.vue'
 import GuestLayout from '@/Layouts/GuestLayout.vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
+import { NOUVEAU_MOT_DE_PASSE_NON_CONFIRME, direSansReseau } from '@/Utils/visitesHorsLigne'
 
 const props = defineProps({
     token: String,
@@ -28,6 +29,7 @@ const form = useForm({
 
 const submit = () => {
     form.post(route('password.store'), {
+        onNetworkError: direSansReseau(NOUVEAU_MOT_DE_PASSE_NON_CONFIRME),
         onFinish: () => form.reset('password', 'password_confirmation'),
     })
 }

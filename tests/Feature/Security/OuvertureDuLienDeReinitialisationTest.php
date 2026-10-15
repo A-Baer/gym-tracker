@@ -484,8 +484,10 @@ it('laisse à l’envoi du formulaire ses six essais par minute : chaque refus r
         $cas = array_keys($refus)[$essai % 2];
         $envoi = from($lien)->post(route('password.store'), $refus[$cas])->assertRedirect($lien);
         $page = get((string) $envoi->headers->get('Location'))->assertOk();
+        /** @var array<string, mixed> $proprietes */
+        $proprietes = $page->inertiaProps();
         /** @var array<string, mixed> $erreurs */
-        $erreurs = $page->inertiaProps()['errors'] ?? [];
+        $erreurs = $proprietes['errors'] ?? [];
 
         expect(array_keys($erreurs))->toBe(['password'], "Essai {$essai}, {$cas}")
             ->and(ouvertureDuLienPropsDeLaPage($page)['compte'] ?? null)->toBe(ouvertureDuLienAdresse());

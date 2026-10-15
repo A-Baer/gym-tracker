@@ -91,11 +91,19 @@ it('répond de même à un compte connecté, sans rien dire de lui', function ()
 /*
  * `/up` répond pendant une maintenance, quand aucune page ne répond : la
  * page aurait réactivé des gestes que le serveur aurait refusés.
+ *
+ * La maintenance reste propre à ce processus (pilote `array`) : le pilote
+ * `file` de phpunit.xml écrirait `storage/framework/down`, que tous les
+ * processus d'une suite parallèle partagent, et chaque requête d'un test
+ * voisin répondrait 503 le temps de ce cas (`.ai/rules/tests.md`).
  */
 it('ne répond pas 2xx pendant une maintenance, contrairement à /up', function (): void {
+    Config::set('app.maintenance.driver', 'array');
     app()->maintenanceMode()->activate([]);
 
     try {
+        expect(is_file(storage_path('framework/down')))->toBeFalse();
+
         sondeDuServeurDemandee()->assertServiceUnavailable();
         $this->get('/up')->assertOk();
     } finally {

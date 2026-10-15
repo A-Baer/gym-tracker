@@ -24,6 +24,7 @@ use Tests\Support\CeQueLeClientLit;
 use Tests\Support\DureeSimulee;
 use Tests\Support\FormulaireDeReinitialisation;
 
+use function Pest\Laravel\from;
 use function Pest\Laravel\get;
 use function Pest\Laravel\post;
 
@@ -457,22 +458,60 @@ it('n’écrit l’adresse ni dans le journal ni dans l’exception d’une ouve
 });
 
 /*
- * Chaque refus retient un processus de l'application le temps du plancher :
- * l'ouverture du lien prend le limiteur des autres routes d'authentification,
- * commun à toutes, qui n'en laisse que six par minute à une adresse IP.
+ * Chaque refus de l'ouverture retient un processus de l'application le temps
+ * du plancher, et chaque ouverture d'un compte qui a une demande en cours
+ * vérifie l'empreinte du jeton (bcrypt) : l'ouverture a donc un limiteur. Pas
+ * celui des autres routes d'authentification : un envoi du formulaire refusé
+ * par la validation (confirmation différente, mot de passe trop court ou
+ * compromis) revient sur la page du lien, que la redirection rouvre, si bien
+ * que chaque essai y comptait deux fois, et que le troisième refus d'affilée
+ * recevait un 429 au lieu de son message. Le sien, à part, en laisse douze par
+ * minute à une adresse IP : une ouverture par envoi, que le limiteur commun
+ * laisse passer six fois, et autant pour le lien lui-même.
  */
-it('prend le limiteur commun des routes d’authentification, partagé avec l’envoi du formulaire', function (): void {
+it('laisse à l’envoi du formulaire ses six essais par minute : chaque refus revient sur la page du lien, avec son message', function (): void {
+    $compte = User::factory()->create(['email' => ouvertureDuLienAdresse()]);
+    $lien = ouvertureDuLienPour($compte);
+    $formulaire = FormulaireDeReinitialisation::depuisLeLien($lien, 'Un-nouveau-mot-de-passe-2026!');
+    $refus = [
+        'une confirmation différente' => [...$formulaire, 'password_confirmation' => 'Une-autre-confirmation-2026!'],
+        'un mot de passe trop court' => [...$formulaire, 'password' => 'court', 'password_confirmation' => 'court'],
+    ];
+
+    get($lien)->assertOk();
+
+    foreach (range(1, 6) as $essai) {
+        $cas = array_keys($refus)[$essai % 2];
+        $envoi = from($lien)->post(route('password.store'), $refus[$cas])->assertRedirect($lien);
+        $page = get((string) $envoi->headers->get('Location'))->assertOk();
+        /** @var array<string, mixed> $erreurs */
+        $erreurs = $page->inertiaProps()['errors'] ?? [];
+
+        expect(array_keys($erreurs))->toBe(['password'], "Essai {$essai}, {$cas}")
+            ->and(ouvertureDuLienPropsDeLaPage($page)['compte'] ?? null)->toBe(ouvertureDuLienAdresse());
+    }
+
+    // Le septième envoi de la minute bute, comme avant, sur le limiteur commun.
+    post(route('password.store'), $formulaire)->assertTooManyRequests();
+    expect(Password::tokenExists($compte, $formulaire['token']))->toBeTrue();
+});
+
+it('borne les ouvertures du lien par un limiteur à part, sans rien prendre à celui des autres routes d’authentification', function (): void {
     $compte = User::factory()->create(['email' => ouvertureDuLienAdresse()]);
     $jeton = Password::createToken($compte);
     $lien = ouvertureDuLienPour($compte, $jeton);
     $refuse = str_replace($jeton, 'un-jeton-quelconque', $lien);
 
-    foreach (range(1, 3) as $_essai) {
+    foreach (range(1, 12) as $_ouverture) {
         get($refuse)->assertOk();
-        post(route('password.store'), FormulaireDeReinitialisation::depuisLeLien($refuse, 'Un-nouveau-mot-de-passe-2026!'))
-            ->assertSessionHasErrors('token');
     }
 
-    get($lien)->assertTooManyRequests();
     get($refuse)->assertTooManyRequests();
+    get($lien)->assertTooManyRequests();
+
+    foreach (range(1, 6) as $_demande) {
+        post(route('password.email'), ['email' => ouvertureDuLienAdresse()])->assertRedirect();
+    }
+
+    post(route('password.email'), ['email' => ouvertureDuLienAdresse()])->assertTooManyRequests();
 });

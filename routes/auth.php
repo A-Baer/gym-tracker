@@ -41,9 +41,12 @@ Route::middleware('guest')->group(function (): void {
         ->name('password.email');
 
     // L'ouverture du lien vérifie le jeton, sous le plancher de durée des
-    // refus : elle prend le limiteur des autres routes d'authentification.
+    // refus : elle a son limiteur, sous sa propre clé (le préfixe), pas celui
+    // des autres routes. Un envoi refusé par la validation rouvre la page :
+    // douze, une ouverture par envoi, que le limiteur commun laisse passer
+    // six fois par minute, et autant pour le lien lui-même.
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
-        ->middleware('throttle:6,1')
+        ->middleware('throttle:12,1,ouverture-du-lien-de-reinitialisation')
         ->name('password.reset');
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])

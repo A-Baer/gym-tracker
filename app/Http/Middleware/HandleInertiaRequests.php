@@ -39,6 +39,13 @@ class HandleInertiaRequests extends Middleware
     private const string INVITE = 'invite';
 
     /**
+     * L'attribut de requête qui fait sortir la réponse en `no-store` : vrai
+     * pour la page d'un compte connecté, et pour la page d'invité qui l'a
+     * demandé par `traiterCommeUnePageDeCompte()`.
+     */
+    private const string PAGE_QUI_PORTE_UN_COMPTE = 'page-qui-porte-un-compte';
+
+    /**
      * Le gabarit racine, chargé à la première visite.
      *
      * @var string
@@ -67,7 +74,8 @@ class HandleInertiaRequests extends Middleware
      * Le chiffrement et le cache se décident ici, à chaque requête, et jamais
      * ailleurs : `ResponseFactory` est un singleton, une valeur posée une fois
      * resterait pour la requête suivante du même processus, celle d'un invité
-     * comprise.
+     * comprise. Une page d'invité qui porte une donnée d'un compte le demande
+     * par `traiterCommeUnePageDeCompte()`, que la requête suivante oublie.
      */
     #[\Override]
     public function handle(Request $request, Closure $next): Response
@@ -77,15 +85,41 @@ class HandleInertiaRequests extends Middleware
 
         $this->jeterLaCleQuandLeTitulaireChange($request, $compte instanceof Authenticatable ? $compte : null);
 
-        Inertia::encryptHistory($pageDUnCompte && $this->leNavigateurPeutChiffrer($request));
+        Inertia::encryptHistory($pageDUnCompte && self::leNavigateurPeutChiffrer($request));
+        $request->attributes->set(self::PAGE_QUI_PORTE_UN_COMPTE, $pageDUnCompte);
 
         $reponse = parent::handle($request, $next);
 
-        if ($pageDUnCompte) {
+        if ($request->attributes->getBoolean(self::PAGE_QUI_PORTE_UN_COMPTE)) {
             $reponse->headers->set('Cache-Control', self::CACHE_D_UNE_PAGE_DE_COMPTE);
         }
 
         return $reponse;
+    }
+
+    /**
+     * Fait sortir la page d'invité de cette requête comme une page de compte :
+     * historique chiffré, document en `no-store` (`handle()`). À appeler avant
+     * `Inertia::render()`, qui lit le chiffrement en construisant la page.
+     *
+     * La page de réinitialisation du mot de passe montre l'adresse du compte
+     * que son lien vient de prouver (`NewPasswordController::create()`) : sans
+     * cela, l'historique du navigateur la garderait en clair, et le cache HTTP
+     * le document qui la porte. Rend faux quand le navigateur ne saurait pas
+     * chiffrer (`leNavigateurPeutChiffrer()`) : la page ne porte alors pas la
+     * donnée, plutôt que de la ranger en clair.
+     */
+    public static function traiterCommeUnePageDeCompte(Request $request): bool
+    {
+        $request->attributes->set(self::PAGE_QUI_PORTE_UN_COMPTE, true);
+
+        if (! self::leNavigateurPeutChiffrer($request)) {
+            return false;
+        }
+
+        Inertia::encryptHistory();
+
+        return true;
     }
 
     /**
@@ -187,7 +221,7 @@ class HandleInertiaRequests extends Middleware
      * en http sur `laravel.test` ; la production, derrière le proxy inverse
      * HTTPS qui transmet `X-Forwarded-Proto`, chiffre.
      */
-    private function leNavigateurPeutChiffrer(Request $request): bool
+    private static function leNavigateurPeutChiffrer(Request $request): bool
     {
         if ($request->isSecure()) {
             return true;

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Requests\Auth\NewPasswordRequest;
 use App\Models\User;
 use App\Support\DureeDesReponsesDAuthentification;
+use App\Support\LiensDesCourriels;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Verified;
+use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -23,24 +26,85 @@ use SensitiveParameter;
 class NewPasswordController extends Controller
 {
     /**
-     * La page qu'ouvre le lien du courriel. Elle reçoit le jeton et l'adresse
-     * chiffrée tels que le lien les porte, et les renverra avec le nouveau mot
-     * de passe ; l'adresse n'y est ni déchiffrée ni affichée. La page ne
-     * vérifie pas le jeton : afficher l'adresse la donnerait en clair à
-     * quiconque ouvre un lien, même périmé, retrouvé dans un historique ou un
-     * journal, et la rangerait dans l'historique du navigateur, que les pages
-     * d'invité ne chiffrent pas. Un lien d'avant le chiffrement (`?email=` en
-     * clair) ouvre la même page, sans adresse : la réinitialisation le refuse
-     * comme un jeton faux.
+     * La page qu'ouvre le lien du courriel. Elle vérifie le lien avant de rien
+     * montrer : l'adresse chiffrée qu'il porte doit se déchiffrer, nommer un
+     * compte, et le jeton être celui, encore valable, de sa demande
+     * (`lienDuCourrielOuvert()`), sans être consommé ni prolongé.
+     *
+     * Un lien qui vaut ouvre le formulaire : la page reçoit le jeton et
+     * l'adresse chiffrée tels que le lien les porte, qu'elle renverra avec le
+     * nouveau mot de passe, et l'adresse du compte (`compte`), qu'elle montre
+     * en lecture seule pour qu'un gestionnaire de mots de passe range le
+     * nouveau sous le bon identifiant. La page sort alors comme une page de
+     * compte (`HandleInertiaRequests::traiterCommeUnePageDeCompte()`) :
+     * historique chiffré, document en `no-store` ; là où le navigateur ne
+     * saurait pas chiffrer, elle ne reçoit pas l'adresse. Seul ce lien la
+     * montre : il suffit à changer le mot de passe du compte.
+     *
+     * Tout autre lien, jeton faux ou périmé, adresse qui manque ou ne se
+     * déchiffre pas, lien d'avant le chiffrement (`?email=` en clair), compte
+     * disparu, reçoit la même page, sans adresse ni formulaire : le refus d'un
+     * jeton faux (`lienRefuse`), après le même plancher de durée que les refus
+     * de la réinitialisation (`DureeDesReponsesDAuthentification`). Le courtier
+     * ne vérifie l'empreinte du jeton (bcrypt) que pour un compte qui a une
+     * demande en cours : sans le plancher, la durée dirait, à qui tient un vieux
+     * lien, si le compte existe encore et s'il a demandé un lien depuis.
      */
     public function create(Request $request): Response
     {
-        $adresse = $request->query('adresse');
+        $jeton = $request->route('token');
+        $adresseChiffree = $request->query('adresse');
+
+        $compte = DureeDesReponsesDAuthentification::appeler(
+            static fn (Timebox $delai): ?string => self::lienDuCourrielOuvert($jeton, $adresseChiffree, $delai),
+        );
+
+        if ($compte === null) {
+            return Inertia::render('Auth/ResetPassword', [
+                'lienRefuse' => trans(Password::INVALID_TOKEN),
+            ]);
+        }
+
+        $montrerLeCompte = HandleInertiaRequests::traiterCommeUnePageDeCompte($request);
 
         return Inertia::render('Auth/ResetPassword', [
-            'token' => $request->route('token'),
-            'adresse' => is_string($adresse) ? $adresse : null,
+            'token' => $jeton,
+            'adresse' => $adresseChiffree,
+            'compte' => $montrerLeCompte ? $compte : null,
         ]);
+    }
+
+    /**
+     * L'adresse du compte dont ce lien de réinitialisation vaut, ou null.
+     *
+     * Le courtier cherche le compte puis compare le jeton à l'empreinte de sa
+     * demande, sans l'effacer ni la dater de nouveau (`getUser()`,
+     * `tokenExists()`) : seul `store()` le consomme. Un lien qui vaut rend la
+     * main sans attendre le plancher : sa page dit déjà qu'il vaut.
+     *
+     * L'adresse rendue est celle que le compte porte, pour que le gestionnaire
+     * de mots de passe la range sous l'identifiant de la connexion. Comme dans
+     * `resetPassword()`, elle n'est recopiée ni dans un journal ni dans un
+     * message d'exception, et c'est `zend.exception_ignore_args` qui la tait
+     * dans la pile.
+     */
+    private static function lienDuCourrielOuvert(mixed $jeton, mixed $adresseChiffree, Timebox $delai): ?string
+    {
+        $adresse = LiensDesCourriels::adresseDuLienDeReinitialisation($adresseChiffree);
+
+        if (! is_string($jeton) || $adresse === null) {
+            return null;
+        }
+
+        $compte = Password::getUser(['email' => $adresse]);
+
+        if (! $compte instanceof CanResetPassword || ! Password::tokenExists($compte, $jeton)) {
+            return null;
+        }
+
+        $delai->returnEarly();
+
+        return $compte->getEmailForPasswordReset();
     }
 
     /**
@@ -56,7 +120,7 @@ class NewPasswordController extends Controller
      * (`NewPasswordRequest::identifiantsDuLien()`) reçoit le même refus, sous
      * le même plancher, sans que le courtier soit appelé. Le refus se range
      * sous `token`, que la page affiche avec le chemin d'une nouvelle demande :
-     * elle n'a plus de champ d'adresse.
+     * elle n'a pas de champ d'adresse à corriger.
      *
      * @throws \Illuminate\Validation\ValidationException
      */

@@ -40,7 +40,10 @@ Route::middleware('guest')->group(function (): void {
         ->middleware('throttle:6,1')
         ->name('password.email');
 
+    // L'ouverture du lien vérifie le jeton, sous le plancher de durée des
+    // refus : elle prend le limiteur des autres routes d'authentification.
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
+        ->middleware('throttle:6,1')
         ->name('password.reset');
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])

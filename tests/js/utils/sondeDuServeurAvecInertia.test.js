@@ -235,6 +235,50 @@ describe('tant que le serveur ne répond pas', () => {
         expect(useEtatDuReseau().joignable.value).toBe(false)
     })
 
+    /*
+     * Le premier délai part de l'échec : une page ouverte depuis longtemps ne
+     * sonde pas à l'instant même où le serveur cesse de répondre.
+     */
+    it('compte le premier délai depuis l’échec, pas depuis le chargement de la page', async () => {
+        await vi.advanceTimersByTimeAsync(10 * 60 * 1000)
+        await perdreLeServeur()
+
+        await vi.advanceTimersByTimeAsync(PREMIER_RECUL_MS - 1)
+
+        expect(appelsDeFetch).toHaveLength(0)
+
+        await vi.advanceTimersByTimeAsync(1)
+
+        expect(appelsDeFetch).toHaveLength(1)
+    })
+
+    /*
+     * Une seconde panne recommence à cinq secondes : le recul d'une panne
+     * passée ne la ferait pas attendre une minute.
+     */
+    it('repart du premier délai après un retour du serveur', async () => {
+        await perdreLeServeur()
+        await vi.advanceTimersByTimeAsync(5000 + 10000 + 20000 + 40000 + 60000)
+
+        expect(appelsDeFetch).toHaveLength(5)
+
+        reseau.mode = 'repond'
+        await vi.advanceTimersByTimeAsync(RECUL_MAXIMAL_MS)
+
+        expect(appelsDeFetch).toHaveLength(6)
+        expect(useEtatDuReseau().joignable.value).toBe(true)
+
+        appelsDeFetch.length = 0
+        await perdreLeServeur()
+        await vi.advanceTimersByTimeAsync(PREMIER_RECUL_MS - 1)
+
+        expect(appelsDeFetch).toHaveLength(0)
+
+        await vi.advanceTimersByTimeAsync(1)
+
+        expect(appelsDeFetch).toHaveLength(1)
+    })
+
     it('ne demande rien page cachée, et demande aussitôt au retour au premier plan', async () => {
         await perdreLeServeur()
         montrerLaPage('hidden')

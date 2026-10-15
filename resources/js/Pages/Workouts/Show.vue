@@ -18,6 +18,7 @@ import { useReglagesDeLaSeance } from '@/composables/useReglagesDeLaSeance'
 import { useIdentiteDesRangees } from '@/composables/useIdentiteDesRangees'
 import { useMinuteurDeRepos } from '@/composables/useMinuteurDeRepos'
 import { useRechargementApresLeVidage } from '@/composables/useRechargementApresLeVidage'
+import { useSeanceEtSaFile } from '@/composables/useSeanceEtSaFile'
 import RestTimer from '@/Components/Workout/RestTimer.vue'
 import CarteDExercice from '@/Components/Workout/CarteDExercice.vue'
 import { fusionnerLaSeance } from '@/Utils/fusionDeSeance'
@@ -40,11 +41,17 @@ const props = defineProps({
 
 const page = usePage()
 
-// ⚡ Perf: Use a mutable reactive ref instead of computed to support optimistic UI updates
-const localWorkout = ref(JSON.parse(JSON.stringify(props.workout)))
-if (localWorkout.value.workout_lines && !Array.isArray(localWorkout.value.workout_lines)) {
-    localWorkout.value.workout_lines = Object.values(localWorkout.value.workout_lines)
-}
+// Ce que le serveur détient de chaque série, les brouillons, et les écritures qu'il n'a pas encore confirmées.
+const brouillons = useBrouillonsDeSeries()
+const { releverLesValeursDuServeur, rejouerLesBrouillons, valeursDeRepli } = brouillons
+
+// La copie locale, modifiable pour l'affichage optimiste : la séance du serveur ou de l'historique, la file par-dessus.
+const { localWorkout, seanceDeDepart } = useSeanceEtSaFile({
+    seance: props.workout,
+    exercices: props.exercises,
+    page,
+    valeursDeRepli,
+})
 
 // Sync with Inertia props when they change (e.g. after redirect-based actions)
 watch(
@@ -103,16 +110,6 @@ const { next: nextWrite, isLatest: isLatestWrite } = createWriteSequencer()
 const fieldWrites = createWriteQueue()
 
 const {
-    releverLesValeursDuServeur,
-    rememberConfirmed,
-    lastConfirmed,
-    writeDraftField,
-    clearDraftField,
-    oublierLaSerie,
-    rejouerLesBrouillons,
-} = useBrouillonsDeSeries()
-
-const {
     ordreEnVol,
     ordreConfirme,
     memoriserLOrdreDesSeries,
@@ -157,11 +154,7 @@ const {
     nextWrite,
     isLatestWrite,
     fieldWrites,
-    lastConfirmed,
-    rememberConfirmed,
-    writeDraftField,
-    clearDraftField,
-    oublierLaSerie,
+    ...brouillons,
     markUnsynced,
     clearUnsynced,
     reportSyncFailure,
@@ -209,9 +202,9 @@ const handleFabAddExercise = () => {
 }
 
 onMounted(() => {
-    // Le premier relevé : la séance telle qu'elle est arrivée. Les suivants se
-    // font dans l'observateur des props.
-    releverLesValeursDuServeur(props.workout)
+    // Le premier relevé : la séance telle qu'elle est arrivée, du serveur ou de
+    // l'historique. Les suivants se font dans l'observateur des props.
+    releverLesValeursDuServeur(seanceDeDepart)
 
     window.addEventListener('open-add-exercise', handleFabAddExercise)
 

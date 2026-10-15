@@ -151,7 +151,7 @@ describe('au retour du réseau', () => {
         expect(useEtatDuReseau().joignable.value).toBe(true)
     })
 
-    it('part sur la même origine, sans cache, sans cookie, sans corps, et bornée dans le temps', async () => {
+    it('part sur la même origine, sans cache, sans cookie, sans l’adresse de la page, sans corps, et bornée dans le temps', async () => {
         await perdreLeServeur()
         window.dispatchEvent(new Event('online'))
         await laisserPasser()
@@ -164,6 +164,7 @@ describe('au retour du réseau', () => {
             method: 'GET',
             cache: 'no-store',
             credentials: 'omit',
+            referrerPolicy: 'no-referrer',
             redirect: 'error',
             signal: expect.any(AbortSignal),
         })

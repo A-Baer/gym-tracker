@@ -453,6 +453,7 @@ describe('ouverture d’une page', () => {
         const sonde = new Request(new URL(ADRESSE_DE_LA_SONDE, self.location.origin), {
             cache: 'no-store',
             credentials: 'omit',
+            referrerPolicy: 'no-referrer',
             redirect: 'error',
         })
         const { respondWith, waitUntil } = demander(sonde)

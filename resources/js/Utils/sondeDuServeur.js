@@ -23,8 +23,9 @@ import { noterQueLeServeurRepond, useEtatDuReseau } from '@/composables/useEtatD
  * redémarre. Une page cachée ne demande rien ; revenue au premier plan, elle
  * reprend là où le recul en était, et demande aussitôt si son délai est passé.
  *
- * La requête part sur la même origine (adresse relative), sans cookie ni jeton,
- * sans cache (`no-store`) et bornée dans le temps. Le worker ne la prend pas
+ * La requête part sur la même origine (adresse relative), sans cookie, sans
+ * jeton ni adresse de la page (`Referer`), sans cache (`no-store`) et bornée
+ * dans le temps. Le worker ne la prend pas
  * (`resources/js/sw/cacheDesActifs.js` ne sert que /build/assets/, et elle
  * n'est pas une navigation), et `connect-src 'self'` l'autorise.
  */
@@ -62,6 +63,8 @@ export const sonderLeServeur = async ({
             method: 'GET',
             cache: 'no-store',
             credentials: 'omit',
+            // Ni l'adresse de la page, qui nomme une séance ou un exercice du compte.
+            referrerPolicy: 'no-referrer',
             // Une redirection n'est pas la réponse du serveur : un portail captif, un proxy d'accès.
             redirect: 'error',
             signal: arret.signal,

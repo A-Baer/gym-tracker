@@ -160,7 +160,9 @@ class NewPasswordController extends Controller
      * courtier, qui les marque. `#[SensitiveParameter]` ne tait que le cadre de
      * cette méthode : une ceinture, pas la protection. Appeler un courtier
      * nommé ôterait ces deux cadres, mais la garde de
-     * `MotDePasseOublieMemeReponseTest` n'accorde à ce contrôleur que `reset`.
+     * `MotDePasseOublieMemeReponseTest` n'accorde à ce contrôleur que
+     * `getUser`, `reset` et `tokenExists`, pas `broker` : il faudrait la
+     * changer.
      *
      * @param  array{token: string, email: string, password: string, password_confirmation: string}|null  $credentials
      */

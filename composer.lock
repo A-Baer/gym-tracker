@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6fd6ad11d53f6f4d34b40716569ecc9d",
+    "content-hash": "24e65ad44827d3c387bc0f57d8580846",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -11930,6 +11930,106 @@
                 "source": "https://github.com/andreapollastri/checkpoint"
             },
             "time": "2026-10-07T09:51:41+00:00"
+        },
+        {
+            "name": "baer-software/larabeacon",
+            "version": "v3.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/A-Baer/LaraBeacon.git",
+                "reference": "fc3ea56190825a1727c9c9fab1cd622ed971dbb3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/A-Baer/LaraBeacon/zipball/fc3ea56190825a1727c9c9fab1cd622ed971dbb3",
+                "reference": "fc3ea56190825a1727c9c9fab1cd622ed971dbb3",
+                "shasum": ""
+            },
+            "require": {
+                "composer": "^2.4",
+                "composer-runtime-api": "^2.2",
+                "ext-json": "*",
+                "guzzlehttp/guzzle": "^7.8.2 || ^8.0",
+                "larastan/larastan": "^3.10",
+                "laravel/framework": "^12.0|^13.0",
+                "nikic/php-parser": "^5.4",
+                "php": "^8.2",
+                "phpstan/phpstan": "^2.2.2",
+                "phpstan/phpstan-deprecation-rules": "^2.0.1",
+                "symfony/finder": "^7.2|^8.0"
+            },
+            "require-dev": {
+                "barryvdh/laravel-ide-helper": "^3.0",
+                "brianium/paratest": "^7.0|^8.0",
+                "friendsofphp/php-cs-fixer": "^3.0",
+                "mockery/mockery": "^1.6",
+                "orchestra/testbench": "^10.0|^11.0",
+                "phpunit/phpunit": "^11.5|^12.5|^13.0",
+                "predis/predis": "^2.3|^3.0"
+            },
+            "suggest": {
+                "baer-software/larabeacon-pro": "Adds commercial analyzers and premium support."
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "BaerSoftware\\LaraBeacon\\LaraBeaconServiceProvider"
+                    ]
+                },
+                "branch-alias": {
+                    "dev-main": "3.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "BaerSoftware\\LaraBeacon\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-3.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Bär Softwareentwicklung UG (haftungsbeschränkt)",
+                    "email": "anthony.baer@baer-software.com",
+                    "homepage": "https://baer-software.com",
+                    "role": "Maintainer"
+                },
+                {
+                    "name": "Paras Malhotra",
+                    "email": "paras@laravel-enlightn.com",
+                    "role": "Original author"
+                },
+                {
+                    "name": "Miguel Piedrafita",
+                    "email": "soy@miguelpiedrafita.com"
+                },
+                {
+                    "name": "Lars Klopstra",
+                    "email": "lars@flowframe.nl"
+                }
+            ],
+            "description": "Production readiness, performance, security, and reliability checks for Laravel applications.",
+            "homepage": "https://github.com/A-Baer/LaraBeacon",
+            "keywords": [
+                "Audit",
+                "analysis tool",
+                "dynamic analysis",
+                "dynamic analyzer",
+                "laravel",
+                "package",
+                "performance",
+                "security",
+                "static analysis",
+                "static analyzer"
+            ],
+            "support": {
+                "issues": "https://github.com/A-Baer/LaraBeacon/issues",
+                "source": "https://github.com/A-Baer/LaraBeacon"
+            },
+            "time": "2026-10-12T09:59:04+00:00"
         },
         {
             "name": "barryvdh/laravel-ide-helper",

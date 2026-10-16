@@ -206,6 +206,34 @@ describe('au retour du réseau', () => {
         expect(useEtatDuReseau().joignable.value).toBe(true)
     })
 
+    /*
+     * L'interface revenue remet le recul au premier délai : un serveur qui
+     * redémarre encore quand le réseau revient se redemande dix secondes après,
+     * pas au bout de la minute déjà atteinte.
+     */
+    it('remet le recul au premier délai, même monté à une minute', async () => {
+        await perdreLeServeur()
+        await vi.advanceTimersByTimeAsync(5000 + 10000 + 20000 + 40000 + 60000)
+
+        expect(appelsDeFetch).toHaveLength(5)
+
+        // Le réseau revient au milieu de la minute d'attente, le serveur pas encore.
+        await vi.advanceTimersByTimeAsync(20000)
+        window.dispatchEvent(new Event('online'))
+        await laisserPasser()
+
+        expect(appelsDeFetch).toHaveLength(6)
+
+        await vi.advanceTimersByTimeAsync(PREMIER_RECUL_MS * 2 - 1)
+
+        expect(appelsDeFetch).toHaveLength(6)
+
+        await vi.advanceTimersByTimeAsync(1)
+
+        expect(appelsDeFetch).toHaveLength(7)
+        expect(useEtatDuReseau().joignable.value).toBe(false)
+    })
+
     it('ne demande rien quand le serveur répond déjà', async () => {
         window.dispatchEvent(new Event('online'))
         await vi.advanceTimersByTimeAsync(RECUL_MAXIMAL_MS * 5)

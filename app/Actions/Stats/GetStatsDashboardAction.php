@@ -29,7 +29,10 @@ class GetStatsDashboardAction
      */
     public function execute(User $user, Request $request): array
     {
-        $period = $request->query('period', '30j');
+        // `?period[]=…` arrive en tableau : sous strict_types, parsePeriod()
+        // levait alors une TypeError et la page répondait 500.
+        $period = $request->query('period');
+        $period = is_string($period) ? $period : '30j';
         $jours = $this->fetchStatsOverview->parsePeriod($period);
 
         $immediateData = $this->fetchStatsOverview->chiffresImmediats($user, $period);

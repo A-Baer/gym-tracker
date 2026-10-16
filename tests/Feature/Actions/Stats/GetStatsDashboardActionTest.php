@@ -6,6 +6,7 @@ use App\Actions\Stats\GetStatsDashboardAction;
 use App\DTOs\Stats\DurationHistoryPoint;
 use App\Models\User;
 use App\Models\Workout;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 /*
@@ -34,4 +35,16 @@ it('trace la durée des trente dernières séances terminées, pas une de plus',
 
     expect(array_map(fn (DurationHistoryPoint $point): string => $point->name, $durees))
         ->toBe(array_map(fn (int $jour): string => sprintf('S%02d', $jour), range(1, 30)));
+});
+
+/*
+ * `?period[]=7j` donne un tableau, pas une chaîne : la page répondait 500 au
+ * lieu de retomber sur la période par défaut.
+ */
+it('retombe sur trente jours quand la période arrive en tableau', function (): void {
+    $user = User::factory()->create();
+
+    $donnees = app(GetStatsDashboardAction::class)->execute($user, Request::create('/stats', 'GET', ['period' => ['7j']]));
+
+    expect($donnees['selectedPeriod'])->toBe('30j');
 });

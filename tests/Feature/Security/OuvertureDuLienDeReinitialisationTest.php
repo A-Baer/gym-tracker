@@ -428,13 +428,14 @@ it('n’écrit l’adresse ni dans la session, ni dans l’adresse gardée pour 
         $jeton = Password::createToken($compte);
         $lien = ouvertureDuLienPour($compte, $jeton);
 
-        get($lien)->assertOk();
+        $ouverture = get($lien)->assertOk();
         $traces = ['session après un lien qui vaut' => serialize(session()->all())];
         get(str_replace($jeton, 'un-jeton-quelconque', $lien))->assertOk();
         $traces['session après un lien refusé'] = serialize(session()->all());
         $traces['journal'] = is_file($fichier) ? (string) file_get_contents($fichier) : '';
 
-        expect(array_keys(array_filter($traces, ouvertureDuLienLaisseLireLAdresse(...))))->toBe([])
+        expect(ouvertureDuLienPropsDeLaPage($ouverture)['compte'] ?? null)->toBe(ouvertureDuLienAdresse())
+            ->and(array_keys(array_filter($traces, ouvertureDuLienLaisseLireLAdresse(...))))->toBe([])
             ->and(session('url.intended'))->toBeNull();
     } finally {
         if (is_file($fichier)) {

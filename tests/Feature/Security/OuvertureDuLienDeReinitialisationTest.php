@@ -37,10 +37,12 @@ use function Pest\Laravel\post;
  * nouveau mot de passe sans identifiant. Elle la montre de nouveau, en
  * lecture seule, mais seulement pour un lien qui vaut : son adresse se
  * déchiffre, nomme un compte, et son jeton est celui, encore valable, de la
- * demande du compte. Ce lien suffit à changer le mot de passe : la page n'en
- * dit pas plus que lui. Elle sort alors comme une page de compte : historique
- * chiffré, document en `no-store`, et pas d'adresse là où le navigateur ne
- * saurait pas chiffrer.
+ * demande du compte. Elle en dit plus que le lien seul : à qui le tient, elle
+ * donne l'identifiant de la connexion, que #2058 lui taisait, jusqu'à ce que
+ * le lien serve ou expire (un test le tient, `.ai/rules/controllers.md` dit
+ * pourquoi). Elle sort alors comme une page de compte : historique chiffré,
+ * document en `no-store`, et pas d'adresse là où le navigateur ne saurait pas
+ * chiffrer.
  *
  * Tout autre lien reçoit la même page, sans adresse ni formulaire, après le
  * même plancher de durée (`DureeDesReponsesDAuthentification`) : ni la page ni
@@ -197,6 +199,41 @@ it('montre l’adresse telle que le compte la porte, et ouvre le formulaire d’
     $compte->forceFill(['email' => 'Titulaire.Ouverture@example.org'])->save();
 
     expect(ouvertureDuLienPropsDeLaPage(get($lien)->assertOk())['compte'] ?? null)->toBe('Titulaire.Ouverture@example.org');
+});
+
+/*
+ * Ce que l'affichage coûte (`.ai/rules/controllers.md`). Un lien qui vaut
+ * suffit à changer le mot de passe ; depuis #2058, il ne disait pas sous quel
+ * identifiant se connecter ensuite. La page le donne désormais à qui tient le
+ * lien : partie de la seule URL, sans rien savoir du compte, la connexion
+ * réussit, et ce jusqu'à ce que le lien serve ou expire. Servi, il ne donne
+ * plus rien. Ce test tient l'affichage retenu : un champ d'identifiant vide,
+ * que l'envoi comparerait à l'adresse du lien, le ferait échouer.
+ */
+it('donne à qui tient un lien qui vaut l’identifiant de la connexion, et plus rien une fois le lien servi', function (): void {
+    $compte = User::factory()->create(['email' => ouvertureDuLienAdresse()]);
+    $lien = ouvertureDuLienPour($compte);
+    $motDePasse = 'Un-nouveau-mot-de-passe-2026!';
+
+    $proprietes = ouvertureDuLienPropsDeLaPage(get($lien)->assertOk());
+    $identifiant = $proprietes['compte'] ?? null;
+
+    expect($identifiant)->toBe(ouvertureDuLienAdresse());
+
+    post(route('password.store'), [
+        ...Arr::only($proprietes, ['token', 'adresse']),
+        'password' => $motDePasse,
+        'password_confirmation' => $motDePasse,
+    ])->assertSessionHasNoErrors()->assertRedirect(route('login'));
+    post(route('login'), ['email' => $identifiant, 'password' => $motDePasse]);
+
+    $this->assertAuthenticatedAs($compte);
+
+    auth()->logout();
+    $servi = get($lien)->assertOk();
+
+    expect(ouvertureDuLienPropsDeLaPage($servi))->toBe(['lienRefuse' => trans(Password::INVALID_TOKEN)])
+        ->and(ouvertureDuLienLaisseLireLAdresse((string) $servi->getContent()))->toBeFalse();
 });
 
 /*

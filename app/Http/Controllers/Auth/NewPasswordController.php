@@ -38,8 +38,11 @@ class NewPasswordController extends Controller
      * nouveau sous le bon identifiant. La page sort alors comme une page de
      * compte (`HandleInertiaRequests::traiterCommeUnePageDeCompte()`) :
      * historique chiffré, document en `no-store` ; là où le navigateur ne
-     * saurait pas chiffrer, elle ne reçoit pas l'adresse. Seul ce lien la
-     * montre : il suffit à changer le mot de passe du compte.
+     * saurait pas chiffrer, elle ne reçoit pas l'adresse. Seul un lien qui
+     * vaut la montre, mais à quiconque le tient : avec elle, ce lien, qui
+     * suffit à changer le mot de passe, donne aussi l'identifiant de la
+     * connexion, que #2058 lui taisait, jusqu'à ce qu'il serve ou expire. C'est
+     * le prix de l'affichage demandé (`.ai/rules/controllers.md`).
      *
      * Tout autre lien, jeton faux ou périmé, adresse qui manque ou ne se
      * déchiffre pas, lien d'avant le chiffrement (`?email=` en clair), compte
